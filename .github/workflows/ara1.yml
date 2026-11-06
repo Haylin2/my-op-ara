@@ -48,6 +48,7 @@ jobs:
       REPO_ORIGIN: https://github.com/Haylin2/h-dashboard.git
       WF_NAME: ara1
       OPENCODE_MODELS: ${{ vars.OPENCODE_DEFAULT_MODELS }}
+      NINE_ROUTER_API_KEY: ${{ secrets.HERMES_CUSTOM_API_KEY }}
 
     steps:
       - name: 1. Checkout Repository
@@ -671,6 +672,17 @@ jobs:
                   _cu_base = _cu_base[:-len("/models")]
               if not _cu_base.endswith("/v1"):
                   _cu_base = _cu_base + "/v1"
+          # 9router provider (my-op-ara only): this machine's own
+          # 9router on http://127.0.0.1:20128 (step 12 restores its
+          # db from the private keys repo). OpenCode talks to it as
+          # an OpenAI-compatible provider; the model is the `code`
+          # combo, addressed by name — 9router routes it across the
+          # combo's models. The key comes from the HERMES_CUSTOM_API_KEY
+          # repo secret (job env NINE_ROUTER_API_KEY); its value must
+          # match an apiKey in the restored db or 9router answers 401.
+          # A plain dispatch uses 9router/code; a per-run provider
+          # choice above still wins for that run only.
+          _nr_key = os.environ.get("NINE_ROUTER_API_KEY", "").strip()
           # The default model is PER-INSTANCE and comes from the
           # opencode/default-models.txt file in this repo: one full
           # model id per line (# comments and blank lines ignored).
@@ -735,6 +747,16 @@ jobs:
               cfg["model"] = _nv_model
           elif _or_model:
               cfg["model"] = _or_model
+          elif _nr_key:
+              _prov = cfg.setdefault("provider", {})
+              _nr = _prov.setdefault("9router", {})
+              _nr["npm"] = "@ai-sdk/openai-compatible"
+              _nr["name"] = "9router"
+              _nr_opts = _nr.setdefault("options", {})
+              _nr_opts["baseURL"] = "http://127.0.0.1:20128/v1"
+              _nr_opts["apiKey"] = "{env:NINE_ROUTER_API_KEY}"
+              _nr.setdefault("models", {}).setdefault("code", {"name": "code"})
+              cfg["model"] = "9router/code"
           else:
               cfg["model"] = _models[_idx % len(_models)]
           mcp = cfg.get("mcp", {})

@@ -296,22 +296,34 @@ jobs:
             echo '⚠️ 9router binary not found after installation'
           fi
 
-      - name: 12. Restore 9router db backup & start hidden (tray)
+      - name: 12. Fetch 9router db from keys repo & start hidden (tray)
+        env:
+          GH_TOKEN: ${{ secrets.MY_PAT }}
         run: |
           export INITIAL_PASSWORD="${{ secrets.RUNNER_PASSWORD }}"
           # Make sure the data dir exists
           mkdir -p ~/.9router/db
-          BACKUP_DIR="${GITHUB_WORKSPACE:-.}/opencode/instances/${WF_NAME}"
-          # Restore THIS instance's backed-up 9router state. State is
-          # per-instance under opencode/instances/<wf>/ (data,
-          # cbm-cache, 9router db) so the four workflows never
-          # overwrite each other; only opencode/config stays shared.
-          if [ -f "$BACKUP_DIR/9router.sqlite" ]; then
-            cp "$BACKUP_DIR/9router.sqlite" ~/.9router/db/data.sqlite
-            echo '✅ Restored 9router data.sqlite from repo backup'
-          else
-            echo '⚠️ per-instance 9router.sqlite not found in repo — starting fresh'
+          # The 9router db lives in the private keys repo
+          # (Haylin2/my-9router, file 9router.sqlite at root) — one
+          # shared db for this account. It is fetched fresh on every
+          # boot; nothing is read from opencode/instances/<wf>/ any
+          # more, and the db is never written back (keys must not
+          # land in this public fleet repo's history). Fail fast if
+          # the keys repo or the file is unreachable — a silent
+          # fresh start would boot a keyless router.
+          KEYS_TMP="$(mktemp -d)"
+          if ! git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/Haylin2/my-9router.git" "$KEYS_TMP"; then
+            echo '::error::could not clone Haylin2/my-9router — check the repo exists and MY_PAT can read it'
+            exit 1
           fi
+          if [ -f "$KEYS_TMP/9router.sqlite" ]; then
+            cp "$KEYS_TMP/9router.sqlite" ~/.9router/db/data.sqlite
+            echo '✅ Restored 9router data.sqlite from keys repo'
+          else
+            echo '::error::9router.sqlite not found in Haylin2/my-9router'
+            exit 1
+          fi
+          rm -rf "$KEYS_TMP"
           # Start 9router hidden in the background (tray mode) on the default port 20128.
           # --tray is the same "hide to background" option used interactively.
           nohup 9router --tray --skip-update -p 20128 > /tmp/9router.log 2>&1 &

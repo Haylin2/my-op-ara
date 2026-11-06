@@ -672,16 +672,17 @@ jobs:
                   _cu_base = _cu_base[:-len("/models")]
               if not _cu_base.endswith("/v1"):
                   _cu_base = _cu_base + "/v1"
-          # 9router provider (my-op-ara only): this machine's own
-          # 9router on http://127.0.0.1:20128 (step 12 restores its
-          # db from the private keys repo). OpenCode talks to it as
-          # an OpenAI-compatible provider; the model is the `code`
-          # combo, addressed by name — 9router routes it across the
-          # combo's models. The key comes from the HERMES_CUSTOM_API_KEY
-          # repo secret (job env NINE_ROUTER_API_KEY); its value must
-          # match an apiKey in the restored db or 9router answers 401.
-          # A plain dispatch uses 9router/code; a per-run provider
-          # choice above still wins for that run only.
+          # 9router provider: this machine's own 9router on
+          # http://127.0.0.1:20128 (step 12 restores its db from the
+          # private keys repo Haylin2/my-9router). OpenCode talks
+          # to it as an OpenAI-compatible provider; the model is the
+          # `code` combo, addressed by name — 9router routes it
+          # across the combo's models. The key comes from the
+          # HERMES_CUSTOM_API_KEY repo secret (job env
+          # NINE_ROUTER_API_KEY); its value must match an apiKey in
+          # the restored db or 9router answers 401. A plain dispatch
+          # uses 9router/code; a per-run provider choice above still
+          # wins for that run only.
           _nr_key = os.environ.get("NINE_ROUTER_API_KEY", "").strip()
           # The default model is PER-INSTANCE and comes from the
           # opencode/default-models.txt file in this repo: one full
@@ -905,10 +906,10 @@ jobs:
           # and the preset forced to "free" so these seats are the
           # ones actually used. The runner's slim config is never
           # committed back, so the next plain dispatch restores the
-          # seats below. my-op-ara only: a plain dispatch (no
-          # per-run choice) puts every seat on the local 9router
-          # combo, the same 9router/code as §4's main model —
-          # NINE_ROUTER_API_KEY set means the key is present.
+          # seats below. A plain dispatch (no per-run choice) puts
+          # every seat on the local 9router combo, the same
+          # 9router/code as §4's main model — NINE_ROUTER_API_KEY
+          # set means the key is present.
           _cu_raw = os.environ.get("CUSTOM_MODEL", "").strip()
           _nv_raw = os.environ.get("NVIDIA_MODEL", "").strip()
           _or_raw = os.environ.get("OPENROUTER_MODEL", "").strip()
